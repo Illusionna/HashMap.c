@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HashMap · A Generic C Hash Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080a0c;
+    --bg2: #0e1115;
+    --bg3: #141820;
+    --border: #1e242e;
+    --border2: #2a3340;
+    --text: #c8d0dc;
+    --text-dim: #5a6880;
+    --text-bright: #eef2f8;
+    --green: #4ade80;
+    --green-dim: #1a3a26;
+    --cyan: #22d3ee;
+    --cyan-dim: #0a2a33;
+    --amber: #fbbf24;
+    --amber-dim: #2d1f06;
+    --red: #f87171;
+    --purple: #a78bfa;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  /* ── LIGHT THEME ── */
+  [data-theme="light"] {
+    --bg: #f4f6f9;
+    --bg2: #eaedf2;
+    --bg3: #dde2ea;
+    --border: #c8d0dc;
+    --border2: #b0bac8;
+    --text: #3a4560;
+    --text-dim: #7a8aa8;
+    --text-bright: #131b2e;
+    --green: #16a34a;
+    --green-dim: #dcfce7;
+    --cyan: #0891b2;
+    --cyan-dim: #cffafe;
+    --amber: #b45309;
+    --amber-dim: #fef3c7;
+    --red: #dc2626;
+    --purple: #7c3aed;
+  }
+  [data-theme="light"] nav { background: rgba(244,246,249,0.88); }
+  [data-theme="light"] body::before { opacity: 0.2; }
+  [data-theme="light"] .hero-glow1 { background: radial-gradient(circle, rgba(22,163,74,0.09) 0%, transparent 70%); }
+  [data-theme="light"] .hero-glow2 { background: radial-gradient(circle, rgba(8,145,178,0.07) 0%, transparent 70%); }
+
+  /* ── TOGGLE CONTROLS ── */
+  .nav-controls { display: flex; align-items: center; gap: 8px; }
+  .ctrl-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border-radius: 2px;
+  }
+  .ctrl-btn:hover { border-color: var(--green); color: var(--green); }
+  .ctrl-btn .icon { font-size: 13px; line-height: 1; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.6;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px;
+    height: 60px;
+    background: rgba(8,10,12,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+  }
+  .nav-logo span { color: var(--green); }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--green); }
+  .nav-badge {
+    background: var(--green-dim);
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,0.25);
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 36fr 64fr;
+    align-items: center;
+    padding: 100px 48px 80px;
+    gap: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* grid lines */
+  .hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.35;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    pointer-events: none;
+  }
+
+  /* glowing orbs */
+  .hero-glow1 {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(74,222,128,0.07) 0%, transparent 70%);
+    top: -100px; left: -100px;
+    pointer-events: none;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  .hero-glow2 {
+    position: absolute;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34,211,238,0.05) 0%, transparent 70%);
+    bottom: -50px; right: 100px;
+    pointer-events: none;
+    animation: drift 15s ease-in-out infinite alternate-reverse;
+  }
+  @keyframes drift {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(30px, 20px); }
+  }
+
+  .hero-left { position: relative; z-index: 1; }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 28px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    width: 24px; height: 1px;
+    background: var(--green);
+    opacity: 0.6;
+  }
+
+  .hero-title {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: clamp(60px, 7.5vw, 108px);
+    line-height: 0.92;
+    letter-spacing: -4px;
+    color: var(--text-bright);
+    margin-bottom: 24px;
+  }
+  .hero-title .accent { color: var(--green); }
+  .hero-title .outline {
+    -webkit-text-stroke: 2px var(--text-dim);
+    color: transparent;
+    letter-spacing: -4px;
+    opacity: 0.55;
+    transition: -webkit-text-stroke-color 0.3s, opacity 0.3s;
+  }
+  [data-theme="light"] .hero-title .outline {
+    -webkit-text-stroke-color: var(--border2);
+    opacity: 0.7;
+  }
+  .hero-title:hover .outline {
+    -webkit-text-stroke-color: var(--green);
+    opacity: 1;
+  }
+
+  .hero-desc {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-dim);
+    max-width: 400px;
+    margin-bottom: 40px;
+  }
+
+  .hero-actions { display: flex; gap: 12px; align-items: center; }
+
+  .btn-primary {
+    background: var(--green);
+    color: #000;
+    border: none;
+    padding: 12px 28px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+
+  .btn-ghost {
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    padding: 11px 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-ghost:hover { border-color: var(--green); color: var(--green); }
+
+  .hero-stats {
+    display: flex; gap: 32px;
+    margin-top: 52px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .stat-item {}
+  .stat-num {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 28px;
+    color: var(--text-bright);
+    letter-spacing: -1px;
+  }
+  .stat-num span { color: var(--green); }
+  .stat-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* Terminal panel */
+  .hero-terminal {
+    position: relative; z-index: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border2), 0 40px 80px rgba(0,0,0,0.6), 0 0 40px rgba(74,222,128,0.04);
+  }
+  .terminal-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+  .terminal-title { margin-left: auto; font-size: 11px; color: var(--text-dim); }
+
+  .terminal-body { padding: 20px 22px; overflow-x: auto; font-size: 12.5px; }
+  .terminal-body pre, .code-line { white-space: nowrap; line-height: 1.85; }
+  .c-comment { color: #4a5a70; }
+  .c-kw   { color: var(--purple); }
+  .c-type { color: var(--cyan); }
+  .c-fn   { color: var(--amber); }
+  .c-str  { color: var(--green); }
+  .c-num  { color: #fb923c; }
+  .c-op   { color: var(--text-dim); }
+  .c-var  { color: var(--text); }
+  .c-macro { color: #f472b6; }
+
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--green);
+    vertical-align: middle;
+    margin-left: 2px;
+    animation: blink 1.1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── FEATURES ── */
+  section { padding: 100px 80px; }
+
+  .section-label {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--green); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::before {
+    content: '//'; color: var(--text-dim); font-size: 13px; letter-spacing: 0;
+  }
+
+  .section-title {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: clamp(32px, 4vw, 52px);
+    letter-spacing: -2px;
+    color: var(--text-bright);
+    line-height: 1.0;
+    margin-bottom: 16px;
+  }
+  .section-sub {
+    font-size: 13px;
+    color: var(--text-dim);
+    max-width: 480px;
+    margin-bottom: 60px;
+    line-height: 1.8;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .feature-card {
+    background: var(--bg);
+    padding: 36px 32px;
+    transition: background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 2px; height: 0;
+    background: var(--green);
+    transition: height 0.3s ease;
+  }
+  .feature-card:hover { background: var(--bg2); }
+  .feature-card:hover::before { height: 100%; }
+
+  .feature-icon {
+    width: 36px; height: 36px;
+    margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    font-size: 16px;
+  }
+  .feature-name {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text-bright);
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+  }
+  .feature-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .feature-tag {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid;
+  }
+  .tag-green { color: var(--green); border-color: rgba(74,222,128,0.3); background: var(--green-dim); }
+  .tag-cyan  { color: var(--cyan);  border-color: rgba(34,211,238,0.3); background: var(--cyan-dim); }
+  .tag-amber { color: var(--amber); border-color: rgba(251,191,36,0.3); background: var(--amber-dim); }
+
+  /* ── API SECTION ── */
+  .api-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+  .api-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  .api-list { display: flex; flex-direction: column; gap: 2px; }
+
+  .api-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: baseline;
+    padding: 14px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .api-item:hover, .api-item.active {
+    background: var(--bg3);
+    border-color: var(--border);
+  }
+  .api-item.active .api-fn-name { color: var(--green); }
+
+  .api-fn-name { color: var(--amber); font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .api-fn-desc { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+
+  .api-preview {
+    position: sticky;
+    top: 80px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .api-preview-bar {
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .api-preview-body { padding: 24px; }
+  .api-preview-body .code-line { margin-bottom: 2px; }
+
+  /* ── PERF SECTION ── */
+  .perf-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .perf-card {
+    background: var(--bg);
+    padding: 32px;
+    text-align: center;
+  }
+  .perf-num {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 36px;
+    letter-spacing: -2px;
+    color: var(--text-bright);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .perf-num .unit { font-size: 18px; color: var(--cyan); }
+  .perf-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .hash-vis {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 32px;
+    border-radius: 4px;
+  }
+  .hash-vis-title { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 20px; }
+  .bucket-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .bucket-idx { width: 32px; font-size: 11px; color: var(--text-dim); text-align: right; flex-shrink: 0; }
+  .bucket-track {
+    flex: 1;
+    height: 20px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .bucket-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green-dim), rgba(74,222,128,0.25));
+    border-right: 1px solid var(--green);
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .bucket-nodes { font-size: 10px; color: var(--green); padding: 0 8px; display: flex; align-items: center; height: 100%; position: absolute; right: 4px; top: 0; }
+
+  /* ── INSTALL ── */
+  .install-section { border-top: 1px solid var(--border); }
+  .install-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .install-steps { display: flex; flex-direction: column; gap: 0; }
+  .install-step {
+    display: flex; gap: 24px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .step-num {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 48px;
+    color: var(--border2);
+    line-height: 1;
+    flex-shrink: 0;
+    width: 48px;
+    transition: color 0.2s;
+  }
+  .install-step:hover .step-num { color: var(--green); }
+  .step-content {}
+  .step-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  .step-desc { font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+  .step-code {
+    margin-top: 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--cyan);
+    border-radius: 2px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 80px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text-dim);
+    letter-spacing: -0.5px;
+  }
+  .footer-logo span { color: var(--green); }
+  .footer-info { font-size: 11px; color: var(--text-dim); }
+  .footer-badges { display: flex; gap: 8px; }
+  .badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── HAMBURGER ── */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px; height: 36px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    padding: 7px;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+    flex-shrink: 0;
+  }
+  .nav-hamburger:hover { border-color: var(--green); }
+  .nav-hamburger span {
+    display: block;
+    width: 100%; height: 1.5px;
+    background: var(--text-dim);
+    transition: all 0.25s ease;
+    transform-origin: center;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); background: var(--green); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); background: var(--green); }
+
+  /* ── MOBILE MENU OVERLAY ── */
+  .nav-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 60px; left: 0; right: 0;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    z-index: 99;
+    padding: 8px 0 16px;
+    transform: translateY(-8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .nav-mobile-menu.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+  .nav-mobile-menu a {
+    display: block;
+    padding: 14px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color 0.2s, background 0.2s;
+  }
+  .nav-mobile-menu a:hover { color: var(--green); background: var(--bg3); }
+  .nav-mobile-divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .nav-mobile-controls {
+    display: flex; gap: 8px;
+    padding: 12px 24px 4px;
+  }
+
+  /* ── FADE-UP ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.7s ease forwards;
+  }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.35s; }
+  .delay-4 { animation-delay: 0.5s; }
+  .delay-5 { animation-delay: 0.65s; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; padding: 100px 32px 60px; }
+    .features-grid { grid-template-columns: 1fr; }
+    section { padding: 80px 32px; }
+    .api-grid, .install-grid { grid-template-columns: 1fr; }
+    .perf-grid { grid-template-columns: repeat(2, 1fr); }
+    footer { padding: 32px; flex-direction: column; gap: 16px; text-align: center; }
+    .hero-title { letter-spacing: -3px; }
+    /* hide desktop nav links & controls, show hamburger */
+    .nav-links { display: none; }
+    .nav-controls { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-mobile-menu { display: block; }
+    nav { padding: 0 20px; gap: 0; }
+  }
+  @media (max-width: 480px) {
+    .hero { padding: 90px 20px 48px; }
+    section { padding: 60px 20px; }
+    .hero-title { letter-spacing: -2px; font-size: clamp(52px, 13vw, 72px); }
+    .perf-grid { grid-template-columns: 1fr 1fr; }
+    .hero-stats { gap: 20px; }
+    footer { padding: 24px 20px; }
+    .nav-mobile-controls { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Hash<span>Map</span>.c</div>
+  <div class="nav-links">
+    <a href="#features" data-i18n="nav_features">Features</a>
+    <a href="#api" data-i18n="nav_api">API</a>
+    <a href="#install" data-i18n="nav_install">Install</a>
+  </div>
+  <div class="nav-controls">
+    <button class="ctrl-btn" id="themeBtn" onclick="toggleTheme()">
+      <span class="icon" id="themeIcon">🌙</span>
+      <span id="themeLabel">Dark</span>
+    </button>
+    <button class="ctrl-btn" onclick="toggleLang()">
+      <span class="icon">🌐</span>
+      <span id="langLabel">中文</span>
+    </button>
+    <div class="nav-badge">C11 · MIT</div>
+  </div>
+  <button class="nav-hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="#features" data-i18n="nav_features" onclick="closeMenu()">Features</a>
+  <a href="#api" data-i18n="nav_api" onclick="closeMenu()">API</a>
+  <a href="#install" data-i18n="nav_install" onclick="closeMenu()">Install</a>
+  <div class="nav-mobile-controls">
+    <button class="ctrl-btn" onclick="toggleTheme()">
+      <span class="icon" id="mThemeIcon">🌙</span>
+      <span id="mThemeLabel">Dark</span>
+    </button>
+    <button class="ctrl-btn" onclick="toggleLang()">
+      <span class="icon">🌐</span>
+      <span id="mLangLabel">中文</span>
+    </button>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow1"></div>
+  <div class="hero-glow2"></div>
+
+  <div class="hero-left">
+    <div class="hero-eyebrow fade-up" data-i18n="hero_eyebrow">Generic Hash Table · C11</div>
+
+    <h1 class="hero-title fade-up delay-1">
+      Hash<span class="accent">Map</span><br>
+      <span class="outline">for C</span>
+    </h1>
+
+    <p class="hero-desc fade-up delay-2" data-i18n="hero_desc">
+      A type-safe, dynamic hash table for C11. Store any type — int, float, string, pointer — 
+      with a single unified API. Auto-resizing, FNV-1a hashing, and zero dependencies.
+    </p>
+
+    <div class="hero-actions fade-up delay-3">
+      <a href="#install" class="btn-primary" data-i18n="hero_cta1">Get Started</a>
+      <a href="#api" class="btn-ghost" data-i18n="hero_cta2">View API →</a>
+    </div>
+
+    <div class="hero-stats fade-up delay-4">
+      <div class="stat-item">
+        <div class="stat-num">0.75<span>×</span></div>
+        <div class="stat-label" data-i18n="stat_load">Load Factor</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">8<span>+</span></div>
+        <div class="stat-label" data-i18n="stat_types">Key Types</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">O<span>(1)</span></div>
+        <div class="stat-label" data-i18n="stat_avg">Average Case</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- terminal -->
+  <div class="hero-terminal fade-up delay-3">
+    <div class="terminal-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="terminal-title">main.c</div>
+    </div>
+    <div class="terminal-body">
+
+
+      <div class="code-line"><span class="c-type">HashMap</span> <span class="c-op">*</span><span class="c-var">dict</span> <span class="c-op">=</span> <span class="c-fn">hashmap_create</span><span class="c-op">();</span></div>
+      <br>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"key"</span><span class="c-op">,</span> <span class="c-str">"value"</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"Illusionna"</span><span class="c-op">,</span> <span class="c-num">2.718281828</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-num">-3.1415926</span><span class="c-op">,</span> <span class="c-macro">NULL</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-num">-0.0F</span><span class="c-op">,</span> <span class="c-num">0.0F</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-macro">NAN</span><span class="c-op">,</span> <span class="c-str">"A value of math NAN"</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-num">7</span><span class="c-op">,</span> <span class="c-num">12</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-macro">&dict</span><span class="c-op">,</span> <span class="c-str">"Zolio Marling"</span><span class="c-op">);</span></div>
+      <br>
+      <div class="code-line"><span class="c-type">HashMapVariant</span> <span class="c-op">*</span><span class="c-var">key</span><span class="c-op">,</span> <span class="c-op">*</span><span class="c-var">value</span><span class="c-op">;</span></div>
+      <div class="code-line"><span class="c-macro">hashmap_iter</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-var">key</span><span class="c-op">,</span> <span class="c-var">value</span><span class="c-op">) {</span></div>
+      <div class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-fn">hashmap_print_variant</span><span class="c-op">(</span><span class="c-var">key</span><span class="c-op">);</span></div>
+      <div class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-fn">hashmap_print_variant</span><span class="c-op">(</span><span class="c-var">value</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-op">}</span></div>
+      <br>
+      <div class="code-line"><span class="c-fn">hashmap_print_view</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">);</span></div>
+      <div class="code-line"><span class="c-fn">hashmap_destroy</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">);</span> <span class="c-cursor"><span class="cursor"></span></span></div>
+
+
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label" data-i18n="feat_label">Features</div>
+  <h2 class="section-title" data-i18n="feat_title">Everything you need.<br>Nothing you don't.</h2>
+  <p class="section-sub" data-i18n="feat_sub">Built on proven algorithms with a clean, macro-driven interface that feels natural in any C11 codebase.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-name" data-i18n="f1_name">FNV-1a Hashing</div>
+      <div class="feature-desc" data-i18n="f1_desc">Industry-proven 64-bit Fowler–Noll–Vo hash with a runtime random seed, providing excellent distribution across all key types.</div>
+      <span class="feature-tag tag-green">O(k) per key</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔄</div>
+      <div class="feature-name" data-i18n="f2_name">Auto Resize</div>
+      <div class="feature-desc" data-i18n="f2_desc">Automatically expands at 75% load and shrinks at 25% load. Bucket count always stays a power of two for fast modulo via bitwise AND.</div>
+      <span class="feature-tag tag-cyan" data-i18n="f2_tag">Non-blocking</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧩</div>
+      <div class="feature-name" data-i18n="f3_name">Generic Types</div>
+      <div class="feature-desc" data-i18n="f3_desc">C11 <code>_Generic</code> selects the right variant constructor at compile time. Use strings, ints, floats, or void pointers as keys or values.</div>
+      <span class="feature-tag tag-amber" data-i18n="f3_tag">Type-safe</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔗</div>
+      <div class="feature-name" data-i18n="f4_name">Chained Buckets</div>
+      <div class="feature-desc" data-i18n="f4_desc">Separate chaining with singly-linked lists. Uses the Linus Torvalds double-pointer technique for branch-free node removal.</div>
+      <span class="feature-tag tag-green" data-i18n="f4_tag">Collision-safe</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-name" data-i18n="f5_name">Memory Tracking</div>
+      <div class="feature-desc" data-i18n="f5_desc">Built-in <code>hashmap_print_view()</code> reports exact memory usage: struct, bucket table, nodes, and heap strings — in human-readable units.</div>
+      <span class="feature-tag tag-cyan" data-i18n="f5_tag">Debug-friendly</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛡</div>
+      <div class="feature-name" data-i18n="f6_name">Edge Case Safety</div>
+      <div class="feature-desc" data-i18n="f6_desc">Handles NaN float equality, <code>-0.0f</code> hash normalization, NULL pointer keys, string allocation failures, and integer overflow in bucket sizing.</div>
+      <span class="feature-tag tag-amber" data-i18n="f6_tag">Battle-hardened</span>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api" class="api-section">
+  <div class="section-label" data-i18n="api_label">API Reference</div>
+  <h2 class="section-title" data-i18n="api_title">Clean. Minimal.<br>Macro-powered.</h2>
+  <p class="section-sub" data-i18n="api_sub">Six public macros cover everything. Internal functions are prefixed with double underscores and stay out of your way.</p>
+
+  <div class="api-grid">
+    <div class="api-list" id="apiList">
+      <div class="api-item active" data-idx="0">
+        <span class="api-fn-name">hashmap_create</span>
+        <span class="api-fn-desc" data-i18n="api0_desc">Allocates and initializes a new HashMap with 8 buckets and a random seed.</span>
+      </div>
+      <div class="api-item" data-idx="1">
+        <span class="api-fn-name">hashmap_add</span>
+        <span class="api-fn-desc" data-i18n="api1_desc">Insert or update a key-value pair. Auto-expands on high load.</span>
+      </div>
+      <div class="api-item" data-idx="2">
+        <span class="api-fn-name">hashmap_get</span>
+        <span class="api-fn-desc" data-i18n="api2_desc">Returns a pointer to the HashMapVariant value, or NULL if not found.</span>
+      </div>
+      <div class="api-item" data-idx="3">
+        <span class="api-fn-name">hashmap_del</span>
+        <span class="api-fn-desc" data-i18n="api3_desc">Removes a key-value pair. Auto-shrinks when load drops below 25%.</span>
+      </div>
+      <div class="api-item" data-idx="4">
+        <span class="api-fn-name">hashmap_contains</span>
+        <span class="api-fn-desc" data-i18n="api4_desc">Returns 1 if the key exists, 0 otherwise. Zero-cost wrapper over get.</span>
+      </div>
+      <div class="api-item" data-idx="5">
+        <span class="api-fn-name">hashmap_iter</span>
+        <span class="api-fn-desc" data-i18n="api5_desc">Macro-based iterator. Expands to a for-loop over all live nodes.</span>
+      </div>
+      <div class="api-item" data-idx="6">
+        <span class="api-fn-name">hashmap_clear</span>
+        <span class="api-fn-desc" data-i18n="api6_desc">Frees all nodes and resets bucket count to initial size.</span>
+      </div>
+      <div class="api-item" data-idx="7">
+        <span class="api-fn-name">hashmap_destroy</span>
+        <span class="api-fn-desc" data-i18n="api7_desc">Frees all memory including the HashMap struct itself.</span>
+      </div>
+    </div>
+
+    <div class="api-preview">
+      <div class="api-preview-bar">
+        <span id="apiPreviewLabel">hashmap_create()</span>
+        <span>example</span>
+      </div>
+      <div class="api-preview-body" id="apiPreviewBody">
+        <div class="code-line"><span class="c-type">HashMap</span> <span class="c-op">*</span><span class="c-var">dict</span> <span class="c-op">=</span> <span class="c-fn">hashmap_create</span><span class="c-op">();</span></div>
+        <div class="code-line"><span class="c-kw">if</span> <span class="c-op">(!</span><span class="c-var">dict</span><span class="c-op">) {</span></div>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">fprintf</span><span class="c-op">(</span><span class="c-var">stderr</span><span class="c-op">,</span> <span class="c-str">"OOM\n"</span><span class="c-op">);</span></div>
+        <div class="code-line"><span class="c-op">}</span></div>
+        <br>
+        <div class="code-line"><span class="c-comment">// dict->bucket == 8 (next power of 2)</span></div>
+        <div class="code-line"><span class="c-comment">// dict->seed   == random (time ^ ptr)</span></div>
+        <div class="code-line"><span class="c-comment">// dict->count  == 0</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PERF -->
+<section>
+  <div class="section-label" data-i18n="perf_label">Internals</div>
+  <h2 class="section-title" data-i18n="perf_title">How the bucket<br>table looks.</h2>
+  <p class="section-sub" data-i18n="perf_sub">After inserting keys the table distributes entries across buckets via hash modulo. Resize keeps load between 25% and 75%.</p>
+
+  <div class="perf-grid">
+    <div class="perf-card">
+      <div class="perf-num">8<span class="unit"> ▸ ∞</span></div>
+      <div class="perf-label" data-i18n="perf_p1">Initial Buckets</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-num">64<span class="unit">-bit</span></div>
+      <div class="perf-label" data-i18n="perf_p2">Hash Width</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-num">×2<span class="unit"> / ÷2</span></div>
+      <div class="perf-label" data-i18n="perf_p3">Resize Strategy</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-num">0<span class="unit"> deps</span></div>
+      <div class="perf-label" data-i18n="perf_p4">Dependencies</div>
+    </div>
+  </div>
+
+  <div class="hash-vis">
+    <div class="hash-vis-title" data-i18n="vis_title">Simulated bucket distribution · 12 entries · 16 buckets</div>
+    <div id="buckets"></div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install" class="install-section">
+  <div class="section-label" data-i18n="inst_label">Get Started</div>
+  <h2 class="section-title" data-i18n="inst_title">Up and running<br>in minutes.</h2>
+  <p class="section-sub" data-i18n="inst_sub">Two files. Drop them in. Start hashing.</p>
+
+  <div class="install-grid">
+    <div class="install-steps">
+      <div class="install-step">
+        <div class="step-num">01</div>
+        <div class="step-content">
+          <div class="step-title" data-i18n="s1_title">Copy the source files</div>
+          <div class="step-desc" data-i18n="s1_desc">Drop <code>hashmap.h</code> and <code>hashmap.c</code> into your project directory. No build system required.</div>
+          <div class="step-code">git clone https://github.com/Illusionna/HashMap.c</div>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">02</div>
+        <div class="step-content">
+          <div class="step-title" data-i18n="s2_title">Include the header</div>
+          <div class="step-desc" data-i18n="s2_desc">Add the include in any translation unit that needs HashMap access. Compile with <code>-std=c11</code> or later.</div>
+          <div class="step-code">#include "hashmap.h"</div>
+        </div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">03</div>
+        <div class="step-content">
+          <div class="step-title" data-i18n="s3_title">Compile &amp; link</div>
+          <div class="step-desc" data-i18n="s3_desc">Link <code>hashmap.c</code> alongside your source. The only standard dependency is <code>libc</code>.</div>
+          <div class="step-code">gcc -std=c11 main.c hashmap.c -o app</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="terminal-title">quick_example.c</div>
+      </div>
+      <div class="terminal-body">
+        <div class="code-line"><span class="c-macro">#include</span> <span class="c-str">"hashmap.h"</span></div>
+        <br>
+        <div class="code-line"><span class="c-type">int</span> <span class="c-fn">main</span><span class="c-op">() {</span></div>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-type">HashMap</span> <span class="c-op">*</span><span class="c-var">m</span> <span class="c-op">=</span> <span class="c-fn">hashmap_create</span><span class="c-op">();</span></div>
+        <br>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">m</span><span class="c-op">,</span> <span class="c-str">"pi"</span><span class="c-op">,</span> <span class="c-num">3.14159</span><span class="c-op">);</span></div>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">m</span><span class="c-op">,</span> <span class="c-num">1</span><span class="c-op">,</span> <span class="c-str">"one"</span><span class="c-op">);</span></div>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">m</span><span class="c-op">,</span> <span class="c-num">2</span><span class="c-op">,</span> <span class="c-str">"two"</span><span class="c-op">);</span></div>
+        <br>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_print_view</span><span class="c-op">(</span><span class="c-var">m</span><span class="c-op">);</span></div>
+        <br>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_destroy</span><span class="c-op">(</span><span class="c-var">m</span><span class="c-op">);</span></div>
+        <div class="code-line">&nbsp;&nbsp;<span class="c-kw">return</span> <span class="c-num">0</span><span class="c-op">;</span></div>
+        <div class="code-line"><span class="c-op">}</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Hash<span>Map</span>.c</div>
+  <div class="footer-info" data-i18n="footer_info">Generic HashMap for C11 · FNV-1a · MIT License</div>
+  <div class="footer-badges">
+    <div class="badge">C11</div>
+    <div class="badge">MIT</div>
+    <div class="badge" data-i18n="badge_deps">Zero Deps</div>
+  </div>
+</footer>
+
+<script>
+  // ── MOBILE MENU ──
+  function toggleMenu() {
+    const btn = document.getElementById('hamburger');
+    const menu = document.getElementById('mobileMenu');
+    btn.classList.toggle('open');
+    menu.classList.toggle('open');
+  }
+  function closeMenu() {
+    document.getElementById('hamburger').classList.remove('open');
+    document.getElementById('mobileMenu').classList.remove('open');
+  }
+
+  // ── THEME ──
+  let isDark = false;
+  function toggleTheme() {
+    isDark = !isDark;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    const icon  = isDark ? '☀️' : '🌙';
+    const label = isDark ? i18n[lang].theme_light : i18n[lang].theme_dark;
+    document.getElementById('themeIcon').textContent   = icon;
+    document.getElementById('themeLabel').textContent  = label;
+    document.getElementById('mThemeIcon').textContent  = icon;
+    document.getElementById('mThemeLabel').textContent = label;
+  }
+
+  // ── I18N ──
+  let lang = 'en';
+  const i18n = {
+    en: {
+      nav_features: 'Features', nav_api: 'API', nav_install: 'Install',
+      hero_eyebrow: 'Generic Hash Table · C11',
+      hero_desc: 'A type-safe, dynamic hash table for C11. Store any type — int, float, string, pointer — with a single unified API. Auto-resizing, FNV-1a hashing, and zero dependencies.',
+      hero_cta1: 'Get Started', hero_cta2: 'View API →',
+      stat_load: 'Load Factor', stat_types: 'Key Types', stat_avg: 'Average Case',
+      feat_label: 'Features', feat_title: 'Everything you need.<br>Nothing you don\'t.',
+      feat_sub: 'Built on proven algorithms with a clean, macro-driven interface that feels natural in any C11 codebase.',
+      f1_name: 'FNV-1a Hashing', f1_desc: 'Industry-proven 64-bit Fowler–Noll–Vo hash with a runtime random seed, providing excellent distribution across all key types.',
+      f2_name: 'Auto Resize',    f2_desc: 'Automatically expands at 75% load and shrinks at 25% load. Bucket count always stays a power of two for fast modulo via bitwise AND.', f2_tag: 'Non-blocking',
+      f3_name: 'Generic Types',  f3_desc: 'C11 <code>_Generic</code> selects the right variant constructor at compile time. Use strings, ints, floats, or void pointers as keys or values.', f3_tag: 'Type-safe',
+      f4_name: 'Chained Buckets',f4_desc: 'Separate chaining with singly-linked lists. Uses the Linus Torvalds double-pointer technique for branch-free node removal.', f4_tag: 'Collision-safe',
+      f5_name: 'Memory Tracking',f5_desc: 'Built-in <code>hashmap_print_view()</code> reports exact memory usage: struct, bucket table, nodes, and heap strings — in human-readable units.', f5_tag: 'Debug-friendly',
+      f6_name: 'Edge Case Safety',f6_desc: 'Handles NaN float equality, <code>-0.0f</code> hash normalization, NULL pointer keys, string allocation failures, and integer overflow in bucket sizing.', f6_tag: 'Battle-hardened',
+      api_label: 'API Reference', api_title: 'Clean. Minimal.<br>Macro-powered.',
+      api_sub: 'Six public macros cover everything. Internal functions are prefixed with double underscores and stay out of your way.',
+      api0_desc: 'Allocates and initializes a new HashMap with 8 buckets and a random seed.',
+      api1_desc: 'Insert or update a key-value pair. Auto-expands on high load.',
+      api2_desc: 'Returns a pointer to the HashMapVariant value, or NULL if not found.',
+      api3_desc: 'Removes a key-value pair. Auto-shrinks when load drops below 25%.',
+      api4_desc: 'Returns 1 if the key exists, 0 otherwise. Zero-cost wrapper over get.',
+      api5_desc: 'Macro-based iterator. Expands to a for-loop over all live nodes.',
+      api6_desc: 'Frees all nodes and resets bucket count to initial size.',
+      api7_desc: 'Frees all memory including the HashMap struct itself.',
+      perf_label: 'Internals', perf_title: 'How the bucket<br>table looks.',
+      perf_sub: 'After inserting keys the table distributes entries across buckets via hash modulo. Resize keeps load between 25% and 75%.',
+      perf_p1: 'Initial Buckets', perf_p2: 'Hash Width', perf_p3: 'Resize Strategy', perf_p4: 'Dependencies',
+      vis_title: 'Simulated bucket distribution · 12 entries · 16 buckets',
+      inst_label: 'Get Started', inst_title: 'Up and running<br>in minutes.', inst_sub: 'Two files. Drop them in. Start hashing.',
+      s1_title: 'Copy the source files', s1_desc: 'Drop <code>hashmap.h</code> and <code>hashmap.c</code> into your project directory. No build system required.',
+      s2_title: 'Include the header',    s2_desc: 'Add the include in any translation unit that needs HashMap access. Compile with <code>-std=c11</code> or later.',
+      s3_title: 'Compile &amp; link',    s3_desc: 'Link <code>hashmap.c</code> alongside your source. The only standard dependency is <code>libc</code>.',
+      footer_info: 'Generic HashMap for C11 · FNV-1a · MIT License', badge_deps: 'Zero Deps',
+      theme_light: 'Light', theme_dark: 'Dark', lang_switch: '中文',
+    },
+    zh: {
+      nav_features: '特性', nav_api: 'API', nav_install: '安装',
+      hero_eyebrow: '通用哈希表 · C11 标准',
+      hero_desc: '为 C11 打造的类型安全动态哈希表。用统一的 API 存储任意类型——整数、浮点、字符串、指针。自动扩缩容，FNV-1a 哈希算法，零外部依赖。',
+      hero_cta1: '立即上手', hero_cta2: '查看 API →',
+      stat_load: '负载因子', stat_types: '键类型数', stat_avg: '平均复杂度',
+      feat_label: '核心特性', feat_title: '所需俱全，<br>一无赘余。',
+      feat_sub: '基于经过验证的算法，提供简洁的宏驱动接口，在任何 C11 代码库中都自然流畅。',
+      f1_name: 'FNV-1a 哈希', f1_desc: '业界验证的 64 位 Fowler–Noll–Vo 哈希，结合运行时随机种子，对所有键类型均有优秀的分布均匀性。',
+      f2_name: '自动扩缩容', f2_desc: '负载达 75% 时自动扩容，低于 25% 时自动缩容。桶数量始终保持 2 的幂次，以位运算替代取模，高效快速。', f2_tag: '非阻塞',
+      f3_name: '泛型类型', f3_desc: 'C11 的 <code>_Generic</code> 在编译期自动选择对应的 Variant 构造函数。支持字符串、整数、浮点或 void 指针作为键或值。', f3_tag: '类型安全',
+      f4_name: '链式桶', f4_desc: '使用单向链表实现分离链接法，并采用 Linus Torvalds 的双指针技巧，实现无分支的节点删除。', f4_tag: '抗碰撞',
+      f5_name: '内存追踪', f5_desc: '内置 <code>hashmap_print_view()</code>，精确报告内存占用：结构体、桶表、节点及堆字符串，以人类可读的单位呈现。', f5_tag: '易调试',
+      f6_name: '边界情况处理', f6_desc: '正确处理 NaN 浮点相等性、<code>-0.0f</code> 哈希规范化、NULL 指针键、字符串分配失败及桶计数整数溢出等极端情况。', f6_tag: '久经考验',
+      api_label: 'API 参考', api_title: '简洁、极简，<br>宏驱动。',
+      api_sub: '六个公开宏覆盖所有操作。内部函数以双下划线为前缀，完全不干扰你的命名空间。',
+      api0_desc: '分配并初始化一个新 HashMap，初始 8 个桶，随机种子。',
+      api1_desc: '插入或更新键值对，高负载时自动扩容。',
+      api2_desc: '返回指向 HashMapVariant 值的指针，未找到时返回 NULL。',
+      api3_desc: '删除键值对，低负载时自动缩容。',
+      api4_desc: '键存在返回 1，否则返回 0。get 的零开销封装。',
+      api5_desc: '基于宏的迭代器，展开为遍历所有活跃节点的 for 循环。',
+      api6_desc: '释放所有节点并将桶数量重置为初始大小。',
+      api7_desc: '释放包括 HashMap 结构体在内的所有内存。',
+      perf_label: '内部机制', perf_title: '桶表的<br>结构一览。',
+      perf_sub: '插入键后，哈希取模将条目分散到各个桶中。自动扩缩容维持负载在 25%~75% 之间。',
+      perf_p1: '初始桶数量', perf_p2: '哈希位宽', perf_p3: '扩缩容策略', perf_p4: '外部依赖',
+      vis_title: '桶分布模拟 · 12 个条目 · 16 个桶',
+      inst_label: '快速开始', inst_title: '几分钟内<br>跑起来。', inst_sub: '两个文件，放进去，开始哈希。',
+      s1_title: '复制源文件', s1_desc: '将 <code>hashmap.h</code> 和 <code>hashmap.c</code> 放入项目目录，无需构建系统。',
+      s2_title: '引入头文件', s2_desc: '在需要 HashMap 的翻译单元中添加 include，编译时使用 <code>-std=c11</code> 或更高标准。',
+      s3_title: '编译并链接', s3_desc: '将 <code>hashmap.c</code> 与你的源码一同编译，唯一的标准依赖是 <code>libc</code>。',
+      footer_info: '通用哈希表 · C11 · FNV-1a · MIT 许可证', badge_deps: '零依赖',
+      theme_light: '浅色', theme_dark: '深色', lang_switch: 'English',
+    }
+  };
+
+  function toggleLang() {
+    lang = lang === 'en' ? 'zh' : 'en';
+    applyLang();
+  }
+
+  function applyLang() {
+    const t = i18n[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+    const switchLabel = t.lang_switch;
+    const themeLabel  = isDark ? t.theme_light : t.theme_dark;
+    document.getElementById('langLabel').textContent   = switchLabel;
+    document.getElementById('mLangLabel').textContent  = switchLabel;
+    document.getElementById('themeLabel').textContent  = themeLabel;
+    document.getElementById('mThemeLabel').textContent = themeLabel;
+    document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+  }
+
+  // ── API PREVIEW ──
+  const snippets = [
+    `<div class="code-line"><span class="c-type">HashMap</span> <span class="c-op">*</span><span class="c-var">dict</span> <span class="c-op">=</span> <span class="c-fn">hashmap_create</span><span class="c-op">();</span></div>
+<div class="code-line"><span class="c-kw">if</span> <span class="c-op">(!</span><span class="c-var">dict</span><span class="c-op">) {</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">fprintf</span><span class="c-op">(</span><span class="c-var">stderr</span><span class="c-op">,</span> <span class="c-str">"OOM\\n"</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-op">}</span></div><br>
+<div class="code-line"><span class="c-comment">// dict->bucket == 8</span></div>
+<div class="code-line"><span class="c-comment">// dict->seed   == random</span></div>`,
+
+    `<div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"key"</span><span class="c-op">,</span> <span class="c-str">"value"</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-num">42</span><span class="c-op">,</span> <span class="c-num">3.14f</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-fn">hashmap_add</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-num">42</span><span class="c-op">,</span> <span class="c-num">99</span><span class="c-op">);</span>&nbsp;<span class="c-comment">// update</span></div><br>
+<div class="code-line"><span class="c-comment">// Returns: 1 (success), 0 (failure)</span></div>`,
+
+    `<div class="code-line"><span class="c-type">HashMapVariant</span> <span class="c-op">*</span><span class="c-var">v</span> <span class="c-op">=</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_get</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"key"</span><span class="c-op">);</span></div><br>
+<div class="code-line"><span class="c-kw">if</span> <span class="c-op">(</span><span class="c-var">v</span> <span class="c-op">&& </span><span class="c-var">v</span><span class="c-op">->type ==</span> <span class="c-macro">_HASHMAP_STRING</span><span class="c-op">)</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">printf</span><span class="c-op">(</span><span class="c-str">"%s\\n"</span><span class="c-op">,</span> <span class="c-var">v</span><span class="c-op">->as.str);</span></div>`,
+
+    `<div class="code-line"><span class="c-type">bool</span> <span class="c-var">ok</span> <span class="c-op">=</span> <span class="c-fn">hashmap_del</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"key"</span><span class="c-op">);</span></div><br>
+<div class="code-line"><span class="c-comment">// Shrinks bucket count if</span></div>
+<div class="code-line"><span class="c-comment">// load < 25% after delete</span></div>`,
+
+    `<div class="code-line"><span class="c-kw">if</span> <span class="c-op">(</span><span class="c-fn">hashmap_contains</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-str">"pi"</span><span class="c-op">)) {</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">printf</span><span class="c-op">(</span><span class="c-str">"found\\n"</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-op">}</span></div><br>
+<div class="code-line"><span class="c-comment">// thin wrapper over hashmap_get</span></div>`,
+
+    `<div class="code-line"><span class="c-type">HashMapVariant</span> <span class="c-op">*</span><span class="c-var">k</span><span class="c-op">,</span> <span class="c-op">*</span><span class="c-var">v</span><span class="c-op">;</span></div>
+<div class="code-line"><span class="c-macro">hashmap_iter</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">,</span> <span class="c-var">k</span><span class="c-op">,</span> <span class="c-var">v</span><span class="c-op">) {</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_print_variant</span><span class="c-op">(</span><span class="c-var">k</span><span class="c-op">);</span></div>
+<div class="code-line">&nbsp;&nbsp;<span class="c-fn">hashmap_print_variant</span><span class="c-op">(</span><span class="c-var">v</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-op">}</span></div>`,
+
+    `<div class="code-line"><span class="c-fn">hashmap_clear</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">);</span></div><br>
+<div class="code-line"><span class="c-comment">// Frees all nodes & strings</span></div>
+<div class="code-line"><span class="c-comment">// Resets bucket count to 8</span></div>
+<div class="code-line"><span class="c-comment">// HashMap* remains valid</span></div>`,
+
+    `<div class="code-line"><span class="c-fn">hashmap_destroy</span><span class="c-op">(</span><span class="c-var">dict</span><span class="c-op">);</span></div>
+<div class="code-line"><span class="c-var">dict</span> <span class="c-op">= NULL;</span></div><br>
+<div class="code-line"><span class="c-comment">// Frees nodes, table, struct</span></div>
+<div class="code-line"><span class="c-comment">// Pointer is dangling after call</span></div>`
+  ];
+
+  const labels = [
+    'hashmap_create()', 'hashmap_add(dict, key, val)',
+    'hashmap_get(dict, key)', 'hashmap_del(dict, key)',
+    'hashmap_contains(dict, key)', 'hashmap_iter(dict, k, v)',
+    'hashmap_clear(dict)', 'hashmap_destroy(dict)'
+  ];
+
+  document.querySelectorAll('.api-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.api-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      const idx = +item.dataset.idx;
+      document.getElementById('apiPreviewLabel').textContent = labels[idx];
+      document.getElementById('apiPreviewBody').innerHTML = snippets[idx];
+    });
+  });
+
+  // ── BUCKET VIS ──
+  const bucketData = [0,1,3,0,2,0,1,0,0,2,1,0,0,1,0,1];
+  const maxNodes = Math.max(...bucketData);
+  const container = document.getElementById('buckets');
+  bucketData.forEach((count, i) => {
+    const row = document.createElement('div');
+    row.className = 'bucket-row';
+    row.innerHTML = `
+      <span class="bucket-idx">${i}</span>
+      <div class="bucket-track">
+        <div class="bucket-fill" style="width: 0%"></div>
+        ${count > 0 ? `<span class="bucket-nodes">${'● '.repeat(count).trim()}</span>` : ''}
+      </div>
+    `;
+    container.appendChild(row);
+    setTimeout(() => {
+      row.querySelector('.bucket-fill').style.width = (count / maxNodes * 100) + '%';
+    }, 200 + i * 40);
+  });
+</script>
+</body>
+</html>
